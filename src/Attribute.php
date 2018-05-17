@@ -2,49 +2,59 @@
 
 namespace ipl\Html;
 
-use Icinga\Exception\ProgrammingError;
+use InvalidArgumentException;
+use UnexpectedValueException;
 
 /**
- * HTML Attribute
+ * HTML Attribute representation
  *
- * Every single HTML attribute is (or should be) an instance of this class.
- * This guarantees that every attribute is safe and escaped correctly.
+ * Every single HTML attribute should be an instance of this class. This guarantees that every attribute is safe and
+ * escaped correctly.
  *
- * Usually attributes are not instantiated directly, but created through an HTML
- * element's exposed methods.
- *
+ * Usually attributes are not instantiated directly but created through an HTML element's exposed methods.
  */
 class Attribute
 {
-    /** @var string */
+    /**
+     * The name of the attribute
+     *
+     * @var string
+     */
     protected $name;
 
-    /** @var string|array|bool|null */
+    /**
+     * The value of the attribute
+     *
+     * @var string|bool|array|null
+     */
     protected $value;
 
     /**
-     * Attribute constructor.
+     * Create a new HTML attribute from the given name and value
      *
-     * @param $name
-     * @param $value
+     * @param   string                  $name   The name of the attribute
+     * @param   string|bool|array|null  $value  The value of the attribute
+     *
+     * @throws  InvalidArgumentException        If the name of the attribute contains special characters
      */
     public function __construct($name, $value = null)
     {
-        $this->setName($name)->setValue($value);
+        $name = (string) $name;
+
+        if (! preg_match('/^[a-z][a-z0-9:_.-]*$/i', $name)) {
+            throw new InvalidArgumentException(
+                "Can't create attribute \"{$name}\". Attribute names with special characters are not allowed."
+            );
+        }
+
+        $this->name = $name;
+        $this->value = $value;
     }
 
     /**
-     * @param $name
-     * @param $value
-     * @return static
-     */
-    public static function create($name, $value)
-    {
-        return new static($name, $value);
-    }
-
-    /**
-     * @return string
+     * Get the name of the attribute
+     *
+     * @return  string
      */
     public function getName()
     {
@@ -52,25 +62,9 @@ class Attribute
     }
 
     /**
-     * @param $name
-     * @return $this
-     * @throws ProgrammingError
-     */
-    public function setName($name)
-    {
-        if (! preg_match('/^[a-z][a-z:-]*$/i', $name)) {
-            throw new ProgrammingError(
-                'Attribute names with special characters are not yet allowed: %s',
-                $name
-            );
-        }
-        $this->name = $name;
-
-        return $this;
-    }
-
-    /**
-     * @return string
+     * Get the value of the attribute
+     *
+     * @return string|bool|array|null
      */
     public function getValue()
     {
@@ -78,8 +72,11 @@ class Attribute
     }
 
     /**
-     * @param mixed $value
-     * @return $this
+     * Set the value of the attribute
+     *
+     * @param   string|bool|array|null  $value  The value of the HTML attribute
+     *
+     * @return  $this
      */
     public function setValue($value)
     {
@@ -89,8 +86,11 @@ class Attribute
     }
 
     /**
-     * @param string $value
-     * @return $this
+     * Add a value to the attribute avoiding duplicates
+     *
+     * @param   string|string[] $value  The value to add
+     *
+     * @return  $this
      */
     public function addValue($value)
     {
@@ -99,7 +99,7 @@ class Attribute
         }
 
         if (is_array($value)) {
-            $this->value = array_merge($this->value, $value);
+            $this->value = array_unique(array_merge($this->value, $value));
         } else {
             $this->value[] = $value;
         }
@@ -108,83 +108,60 @@ class Attribute
     }
 
     /**
-     * @return bool
+     * Remove a value of the attribute
+     *
+     * @param   string|string[] $value      The value to remove
+     *
+     * @return  $this
+     *
+     * @throws  UnexpectedValueException    If the current value is not an array
      */
-    public function isBoolean()
+    public function removeValue($value)
     {
-        return is_bool($this->value);
+        if (! is_array($this->value)) {
+            throw new UnexpectedValueException('Can\'t remove value from non-array variable.');
+        }
+
+        if (! is_array($value)) {
+            $value = [$value];
+        }
+
+        $this->value = array_diff($this->value, $value);
+
+        return $this;
     }
 
     /**
-     * @return string
+     * Render the attribute to HTML
+     *
+     * If the value of the attribute is of type boolean, it will be rendered as
+     * {@link http://www.w3.org/TR/html5/infrastructure.html#boolean-attributes boolean attribute}.
+     * Note that null will be returned, if the value of the attribute is false.
+     *
+     * Also, if the value of the attribute is null, null will be returned
+     *
+     * HTML-encoding of the attribute's value takes place automatically using {@link Html::encode()}.
+     *
+     * @return  string|null
      */
     public function render()
     {
-        if ($this->isBoolean() && $this->value) {
-            return $this->renderName();
-        } else {
-            return sprintf(
-                '%s="%s"',
-                $this->renderName(),
-                $this->renderValue()
-            );
+        $value = $this->getValue();
+
+        if ($value === false || $value === null) {
+            return null;
         }
-    }
 
-    /**
-     * @return string
-     */
-    public function renderName()
-    {
-        return static::escapeName($this->name);
-    }
+        $name = $this->getName();
 
-    /**
-     * @return string
-     */
-    public function renderValue()
-    {
-        return static::escapeValue($this->value);
-    }
+        if ($value === true) {
+            return $name;
+        }
 
-    /**
-     * @return bool
-     */
-    public function isEmpty()
-    {
-        return null === $this->value || $this->value === [];
-    }
-
-    /**
-     * @param $name
-     * @return static
-     */
-    public static function createEmpty($name)
-    {
-        return new static($name, null);
-    }
-
-    /**
-     * @param $name
-     * @return string
-     */
-    public static function escapeName($name)
-    {
-        // TODO: escape
-        return (string) $name;
-    }
-
-    /**
-     * @param $value
-     * @return string
-     */
-    public static function escapeValue($value)
-    {
-        // TODO: escape differently
         if (is_array($value)) {
-            return Html::escapeForHtml(implode(' ', $value));
-        } else {
-            return Html::escapeForHtml((string) $value);
+            $value = implode($name === 'style' ? ';' : ' ', $value);
         }
+
+        return $name . '="' . Html::encode($value) . '""';
     }
 }
