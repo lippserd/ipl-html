@@ -2,47 +2,71 @@
 
 namespace ipl\Html;
 
+/**
+ * Base class for HTML elements
+ */
 abstract class BaseHtmlElement extends HtmlDocument
 {
-    /** @var array You may want to set default attributes when extending this class */
-    protected $defaultAttributes;
-
-    /** @var Attributes */
-    protected $attributes;
-
-    /** @var string */
-    protected $tag;
-
-    protected $hasBeenAssembled = false;
-
-    protected static $voidElements = [
-        'area',
-        'base',
-        'br',
-        'col',
-        'embed',
-        'hr',
-        'img',
-        'input',
-        'link',
-        'meta',
-        'param',
-        'source',
-        'track',
-        'wbr'
+    /**
+     * List of void elements which do not contain closing tags or content
+     *
+     * This property should be used to decide whether the content and closing tag has to be rendered.
+     *
+     * @var array
+     *
+     * @see https://www.w3.org/TR/html5/syntax.html#void-elements
+     */
+    public static $voidElements = [
+        'area'      => 1,
+        'base'      => 1,
+        'br'        => 1,
+        'col'       => 1,
+        'embed'     => 1,
+        'hr'        => 1,
+        'img'       => 1,
+        'input'     => 1,
+        'keygen'    => 1,
+        'link'      => 1,
+        'meta'      => 1,
+        'param'     => 1,
+        'source'    => 1,
+        'track'     => 1,
+        'wbr'       => 1
     ];
 
     /**
-     * @return Attributes
+     * The default HTML attributes of the element if no attributes were given
+     *
+     * @var Attributes
+     */
+    protected $defaultAttributes;
+
+    /**
+     * The tag of the HTML element
+     *
+     * @var string
+     */
+    protected $tag;
+
+    /**
+     * The HTML attributes of the element
+     *
+     * @var Attributes
+     */
+    private $attributes;
+
+    /**
+     * Get the HTML attributes of the element
+     *
+     * @return  Attributes
      */
     public function getAttributes()
     {
         if ($this->attributes === null) {
-            $default = $this->getDefaultAttributes();
-            if (empty($default)) {
-                $this->attributes = new Attributes();
+            if (! empty($this->defaultAttributes)) {
+                $this->attributes = Attributes::ensureAttributes($this->defaultAttributes);
             } else {
-                $this->attributes = Attributes::wantAttributes($default);
+                $this->attributes = new Attributes();
             }
         }
 
@@ -50,123 +74,74 @@ abstract class BaseHtmlElement extends HtmlDocument
     }
 
     /**
-     * @param Attributes|array|null $attributes
-     * @return $this
+     * Set the HTML attributes of the element
+     *
+     * @param   Attributes|array|null   $attributes
+     *
+     * @return  $this
      */
     public function setAttributes($attributes)
     {
-        $this->attributes = Attributes::wantAttributes($attributes);
-        return $this;
-    }
+        $this->attributes = Attributes::ensureAttributes($attributes);
 
-    public function setAttribute($key, $value)
-    {
-        $this->getAttributes()->set($key, $value);
         return $this;
     }
 
     /**
-     * @param Attributes|array|null $attributes
-     * @return $this
+     * Get the HTML tag of the element
+     *
+     * @return  string
      */
-    public function addAttributes($attributes)
-    {
-        $this->getAttributes()->add($attributes);
-        return $this;
-    }
-
-    public function getDefaultAttributes()
-    {
-        return $this->defaultAttributes;
-    }
-
-    public function setTag($tag)
-    {
-        $this->tag = $tag;
-        return $this;
-    }
-
     public function getTag()
     {
         return $this->tag;
     }
 
-    public function renderContent()
+    /**
+     * Get whether the element should render the closing tag
+     *
+     * @return  bool
+     */
+    public function wantsClosingTag()
+    {
+        $tag = $this->getTag();
+
+        return ! isset(self::$voidElements[$tag]);
+    }
+
+    /**
+     * Render the content of the element
+     *
+     * @return  string
+     */
+    protected function renderContent()
     {
         return parent::render();
     }
 
-    protected function assemble()
-    {
-    }
-
-    public function add($content)
-    {
-        if (! $this->hasBeenAssembled) {
-            $this->hasBeenAssembled = true;
-            $this->assemble();
-        }
-
-        return parent::add($content);
-    }
-
-    /**
-     * @return string
-     */
     public function render()
     {
         $tag = $this->getTag();
-        if (! $this->hasBeenAssembled) {
-            $this->hasBeenAssembled = true;
-            $this->assemble();
-        }
 
-        $content = $this->renderContent();
-        if (strlen($content) || $this->wantsClosingTag()) {
-            return sprintf(
-                '<%s%s>%s</%s>',
-                $tag,
-                $this->renderAttributes(),
-                $content,
-                $tag
-            );
+        $this->ensureAssembled();
+
+        if (empty($tag)) {
+            $html = $this->renderContent();
         } else {
-            return sprintf(
-                '<%s%s />',
-                $tag,
-                $this->renderAttributes()
-            );
+            $html = [
+                // rtrim because attributes may be empty
+                rtrim("<$tag " . $this->getAttributes()->render())
+                . ">"
+            ];
+
+            if ($this->wantsClosingTag()) {
+                $html[] = $this->renderContent();
+                $html[] = "</$tag>";
+            }
+
+            $html = implode('', $html);
         }
-    }
 
-    public function renderAttributes()
-    {
-        if ($this->attributes === null && empty($this->defaultAttributes)) {
-            return '';
-        } else {
-            return $this->getAttributes()->render();
-        }
-    }
-
-    public function wantsClosingTag()
-    {
-        // TODO: There is more. SVG and MathML namespaces
-        return ! $this->isVoidElement();
-    }
-
-    public function isVoidElement()
-    {
-        return in_array($this->tag, self::$voidElements);
-    }
-
-    /**
-     * Whether the given something can be rendered
-     *
-     * @param mixed $any
-     * @return bool
-     */
-    protected function canBeRendered($any)
-    {
-        return is_string($any) || is_int($any) || is_null($any);
+        return $html;
     }
 }
