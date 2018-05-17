@@ -28,18 +28,4 @@ class HtmlElement extends BaseHtmlElement
             $this->setContent($content);
         }
     }
-
-    /**
-     * Container constructor.
-     *
-     * @param string $tag
-     * @param Attributes|array $attributes
-     * @param ValidHtml|array|string $content
-     *
-     * @return static
-     */
-    public static function create($tag, $attributes = null, $content = null)
-    {
-        return new static($tag, $attributes, $content);
-    }
 }

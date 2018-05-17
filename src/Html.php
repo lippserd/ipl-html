@@ -24,7 +24,7 @@ class Html
      */
     public static function tag($tag, $attributes = null, $content = null)
     {
-        return HtmlElement::create($tag, $attributes, $content);
+        return new HtmlElement($tag, $attributes, $content);
     }
 
     /**
@@ -127,7 +127,7 @@ class Html
             }
         }
 
-        return HtmlElement::create($name, $attributes, $content);
+        return new HtmlElement($name, $attributes, $content);
     }
 
     /**
