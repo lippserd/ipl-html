@@ -38,23 +38,6 @@ class Html
     }
 
     /**
-     * Create a HTML element from the given tag, attributes and content
-     *
-     * This method does not render the HTML element but creates a {@link HtmlElement} instance from the given tag,
-     * attributes and content
-     *
-     * @param   string                  $tag        The tag for the element
-     * @param   Attributes|array        $attributes The HTML attributes for the element
-     * @param   ValidHtml|string|array  $content    The contentl of the element
-     *
-     * @return  HtmlElement The created element
-     */
-    public static function tag($tag, $attributes = null, $content = null)
-    {
-        return new HtmlElement($tag, $attributes, $content);
-    }
-
-    /**
      * Ensure that the given content of mixed type is converted to HTML elements that promise to render safe HTML
      *
      * The conversion procedure is as follows:
@@ -109,6 +92,23 @@ class Html
     public static function wantHtml($content)
     {
         return self::ensureHtml($content);
+    }
+
+    /**
+     * Create a HTML element from the given tag, attributes and content
+     *
+     * This method does not render the HTML element but creates a {@link HtmlElement} instance from the given tag,
+     * attributes and content
+     *
+     * @param   string                  $tag        The tag for the element
+     * @param   Attributes|array        $attributes The HTML attributes for the element
+     * @param   ValidHtml|string|array  $content    The contentl of the element
+     *
+     * @return  HtmlElement The created element
+     */
+    public static function tag($tag, $attributes = null, $content = null)
+    {
+        return new HtmlElement($tag, $attributes, $content);
     }
 
     /**
