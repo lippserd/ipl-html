@@ -2,23 +2,32 @@
 
 namespace ipl\Html;
 
-use Icinga\Exception\IcingaException;
-use Icinga\Exception\ProgrammingError;
+use InvalidArgumentException;
+use IteratorAggregate;
 
-class Attributes
+/**
+ * Attributes represents HTML attributes
+ */
+class Attributes implements ValidHtml, IteratorAggregate
 {
-    /** @var Attribute[] */
+    /**
+     * Internal storage for attributes
+     *
+     * @var Attribute[]
+     */
     protected $attributes = [];
 
-    /** @var callable */
-    protected $callbacks = [];
-
-    /** @var string */
+    /**
+     * Attribute name prefix
+     *
+     * @var string
+     */
     protected $prefix = '';
 
     /**
-     * Attributes constructor.
-     * @param Attribute[] $attributes
+     * Create a new Attributes container from the given attribute name-value pairs
+     *
+     * @param   array   $attributes Attribute name-value pairs
      */
     public function __construct(array $attributes = null)
     {
@@ -26,145 +35,15 @@ class Attributes
             return;
         }
 
-        foreach ($attributes as $key => $value) {
-            if ($value instanceof Attribute) {
-                $this->addAttribute($value);
-            } elseif (is_string($key)) {
-                $this->add($key, $value);
-            } elseif (is_array($value) && count($value) === 2) {
-                $this->add(array_shift($value), array_shift($value));
-            }
-        }
+        $this->add($attributes);
     }
 
     /**
-     * @param Attribute[] $attributes
-     * @return static
-     */
-    public static function create(array $attributes = null)
-    {
-        return new static($attributes);
-    }
-
-    /**
-     * @param Attributes|array|null $attributes
-     * @return Attributes
-     * @throws IcingaException
-     */
-    public static function wantAttributes($attributes)
-    {
-        if ($attributes instanceof Attributes) {
-            return $attributes;
-        } else {
-            $self = new static();
-            if (is_array($attributes)) {
-                foreach ($attributes as $k => $v) {
-                    $self->add($k, $v);
-                }
-
-                return $self;
-            } elseif ($attributes !== null) {
-                throw new IcingaException(
-                    'Attributes, Array or Null expected, got %s',
-                    Html::getPhpTypeName($attributes)
-                );
-            }
-            return $self;
-        }
-    }
-
-    /**
-     * @return Attribute[]
-     */
-    public function getAttributes()
-    {
-        return $this->attributes;
-    }
-
-    /**
-     * @param Attribute|string $attribute
-     * @param string|array $value
-     * @return $this
-     */
-    public function add($attribute, $value = null)
-    {
-        if ($attribute instanceof static) {
-            foreach ($attribute->getAttributes() as $a) {
-                $this->add($a);
-            }
-        } elseif ($attribute instanceof Attribute) {
-            $this->addAttribute($attribute);
-        } elseif (is_array($attribute)) {
-            foreach ($attribute as $name => $value) {
-                $this->add($name, $value);
-            }
-        } else {
-            $this->addAttribute(Attribute::create($attribute, $value));
-        }
-
-        return $this;
-    }
-
-    /**
-     * @param Attribute|array|string $attribute
-     * @param string|array $value
-     * @return $this
-     */
-    public function set($attribute, $value = null)
-    {
-        if ($attribute instanceof static) {
-            foreach ($attribute as $a) {
-                $this->setAttribute($a);
-            }
-
-            return $this;
-        } elseif ($attribute instanceof Attribute) {
-            return $this->setAttribute($attribute);
-        } elseif (is_array($attribute)) {
-            foreach ($attribute as $name => $value) {
-                $this->set($name, $value);
-            }
-
-            return $this;
-        } else {
-            return $this->setAttribute(new Attribute($attribute, $value));
-        }
-    }
-
-    /**
-     * @param $name
-     * @return Attribute
-     */
-    public function get($name)
-    {
-        if ($this->has($name)) {
-            return $this->attributes[$name];
-        } else {
-            $this->attributes[$name] = new Attribute($name);
-
-            return $this->attributes[$name];
-        }
-    }
-
-    /**
-     * @param $name
-     * @return Attribute|false
-     */
-    public function remove($name)
-    {
-        if ($this->has($name)) {
-            $attribute = $this->attributes[$name];
-            unset($this->attributes[$name]);
-
-            return $attribute;
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * @param $name
-     * @return bool
+     * Get whether the attribute with the given name exists
+     *
+     * @param   string  $name   The name of the attribute
+     *
+     * @return  bool
      */
     public function has($name)
     {
@@ -172,98 +51,233 @@ class Attributes
     }
 
     /**
-     * @param Attribute $attribute
-     * @return $this
-     */
-    public function addAttribute(Attribute $attribute)
-    {
-        $name = $attribute->getName();
-        if (array_key_exists($name, $this->attributes)) {
-            $this->attributes[$name]->addValue($attribute->getValue());
-        } else {
-            $this->attributes[$name] = $attribute;
-        }
-
-        return $this;
-    }
-
-    /**
-     * @param Attribute $attribute
-     * @return $this
-     */
-    public function setAttribute(Attribute $attribute)
-    {
-        $name = $attribute->getName();
-        $this->attributes[$name] = $attribute;
-        return $this;
-    }
-
-    /**
-     * Callback must return an instance of Attribute
+     * Get the attribute with the given name
      *
-     * @param string $name
-     * @param callable $callback
-     * @return $this
-     * @throws ProgrammingError
+     * If the attribute does not yet exist, it is automatically create and initialised with null.
+     *
+     * @param   string  $name   The name of the attribute
+     *
+     * @return  Attribute
      */
-    public function registerAttributeCallback($name, $callback)
+    public function get($name)
     {
-        if (! is_callable($callback)) {
-            throw new ProgrammingError(__METHOD__ . ' expects a callable callback');
+        if (! array_key_exists($name, $this->attributes)) {
+            $this->attributes[$name] = new Attribute($name);
         }
-        $this->callbacks[$name] = $callback;
+
+        return $this->attributes[$name];
+    }
+
+    /**
+     * Set the attribute with the given name and value
+     *
+     * If the attribute with the given name already exists, it gets overridden.
+     *
+     * @param   string                  $name   The name of the attribute
+     * @param   string|bool|array|null  $value  The value of the attribute
+     *
+     * @return  $this
+     */
+    public function set($name, $value = null)
+    {
+        $this->attributes[$name] = new Attribute($name, $value);
 
         return $this;
     }
 
     /**
-     * @return string
-     * @throws ProgrammingError
+     * Add the given attribute(s)
+     *
+     * If an attribute with the same name already exists, the attribute's value will be added to the current value of
+     * the attribute.
+     *
+     * @param   array|self|string|Attribute $attribute  The attribute(s) to add
+     * @param   string|bool|array|null      $value      The value of the attribute
+     *
+     * @return $this
      */
-    public function render()
+    public function add($attribute, $value = null)
     {
-        if (empty($this->attributes) && empty($this->callbacks)) {
-            return '';
+        if ($attribute instanceof self) {
+            foreach ($attribute as $attr) {
+                $this->add($attr);
+            }
+
+            return $this;
         }
 
-        $parts = [];
-        foreach ($this->callbacks as $name => $callback) {
-            $attribute = call_user_func($callback);
-            if ($attribute instanceof Attribute) {
-                $parts[] = $attribute->render();
-            } elseif (is_string($attribute)) {
-                $parts[] = Attribute::create($name, $attribute)->render();
-            } elseif (null === $attribute) {
-                continue;
+        if (is_array($attribute)) {
+            foreach ($attribute as $name => $value) {
+                $this->add($name, $value);
+            }
+
+            return $this;
+        }
+
+        if ($attribute instanceof Attribute) {
+            $name = $attribute->getName();
+
+            if (! array_key_exists($name, $this->attributes)) {
+                $this->attributes[$name] = $attribute;
             } else {
-                throw new ProgrammingError(
-                    'A registered attribute callback must return string, null'
-                    . ' or an Attribute'
-                );
-            }
-        }
-
-        foreach ($this->attributes as $attribute) {
-            if ($attribute->isEmpty()) {
-                continue;
+                $this->attributes[$name]->addValue($attribute->getValue());
             }
 
-            $parts[] = $attribute->render();
+            return $this;
         }
 
-        $separator = ' ' . $this->prefix;
+        if (! array_key_exists($attribute, $this->attributes)) {
+            $this->attributes[$attribute] = new Attribute($attribute, $value);
+        } else {
+            $this->attributes[$attribute]->addValue($value);
+        }
 
-        return $separator . implode($separator, $parts);
+        return $this;
     }
 
     /**
-     * @param string $prefix
-     * @return $this
+     * Remove the attribute with the given name or remove the given value from the attribute
+     *
+     * @param   string                  $name   The name of the attribute
+     * @param   null|string|string[]    $value  If given and not null, the value to remove
+     *
+     * @return  Attribute|false
+     */
+    public function remove($name, $value = null)
+    {
+        if (! array_key_exists($name, $this->attributes)) {
+            return false;
+        }
+
+        $attribute = $this->attributes[$name];
+
+        if ($value === null) {
+            unset($this->attributes[$name]);
+        } else {
+            $attribute->removeValue($value);
+        }
+
+        return $attribute;
+    }
+
+    /**
+     * Set the attributes
+     *
+     * @param   array|self    $attributes
+     *
+     * @return  $this
+     */
+    public function setAttributes($attributes)
+    {
+        $this->attributes = [];
+
+        $this->add($attributes);
+
+        return $this;
+    }
+
+    /**
+     * Get the attribute name prefix
+     *
+     * @return  string
+     */
+    public function getPrefix()
+    {
+        return $this->prefix;
+    }
+
+    /**
+     * Set the attribute name prefix
+     *
+     * @param   string  $prefix
+     *
+     * @return  $this
      */
     public function setPrefix($prefix)
     {
-        $this->prefix = $prefix;
+        $this->prefix = (string) $prefix;
 
         return $this;
+    }
+
+    /**
+     * Render attributes to HTML
+     *
+     * If the value of an attribute is of type boolean, it will be rendered as
+     * {@link http://www.w3.org/TR/html5/infrastructure.html#boolean-attributes boolean attribute}.
+     *
+     * If the value of an attribute is null, it will be skipped.
+     *
+     * HTML-encoding of the attributes' values takes place automatically using {@link Html::encode()}.
+     *
+     * @return  string
+     */
+    public function render()
+    {
+        $html = [];
+
+        foreach ($this->attributes as $attribute) {
+            $html[] = $attribute->render();
+        }
+
+        return $this->prefix . implode(' ' . $this->prefix, array_filter($html));
+    }
+
+    /**
+     * @inheritdoc
+     *
+     * @return \Generator
+     */
+    public function getIterator()
+    {
+        foreach ($this->attributes as $attribute) {
+            yield $attribute;
+        }
+    }
+
+    /**
+     * Ensure that the given attributes of mixed type are converted to an instance of attributes
+     *
+     * The conversion procedure is as follows:
+     *
+     * If the given attributes is an instance of Attributes, no conversion is applied. If the attributes are given as an
+     * array of attribute name-value pairs, they are used to construct and return a new Attributes instance.
+     * If the attributes are null, an empty new instance of Attributes is returned.
+     *
+     * @param   self|array|null $attributes
+     *
+     * @return  self
+     *
+     * @throws  InvalidArgumentException    In case the given attributes are of an unsupported type
+     */
+    public static function ensureAttributes($attributes)
+    {
+        if ($attributes instanceof self) {
+            return $attributes;
+        }
+
+        if (is_array($attributes)) {
+            return new self($attributes);
+        }
+
+        if ($attributes === null) {
+            return new self();
+        }
+
+        if (is_object($attributes)) {
+            $type = get_class($attributes);
+        } else {
+            $type = gettype($attributes);
+        }
+
+        throw new InvalidArgumentException("Attribute instance, array or expected. Got $type instead.");
+    }
+
+    /**
+     * @deprecated Use {@link ensureAttributes()} instead
+     */
+    public static function wantAttributes($attributes)
+    {
+        return self::ensureAttributes($attributes);
     }
 }
