@@ -55,17 +55,6 @@ class Html
     }
 
     /**
-     * @param $string
-     * @return FormattedString
-     */
-    public static function sprintf($string)
-    {
-        $args = func_get_args();
-        array_shift($args);
-        return new FormattedString($string, $args);
-    }
-
-    /**
      * Ensure that the given content of mixed type is converted to HTML elements that promise to render safe HTML
      *
      * The conversion procedure is as follows:
