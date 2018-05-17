@@ -3,99 +3,97 @@
 namespace ipl\Html;
 
 use Countable;
-use Exception;
-use Icinga\Exception\ProgrammingError;
 
 /**
- * Class Html
- * @package ipl\Html
+ * Representation of HTML documents
  */
-class HtmlDocument implements ValidHtml, Countable
+class HtmlDocument implements Countable, ValidHtml
 {
-    protected $contentSeparator = '';
+    /**
+     * Whether the content has been assembled via {@link assemble()}
+     *
+     * @var bool
+     */
+    protected $assembled = false;
 
-    /** @var ValidHtml[] */
+    /**
+     * The content separator for rendering
+     *
+     * @var string
+     */
+    protected $separator = "\n";
+
+    /**
+     * The content of the element
+     *
+     * @var ValidHtml[]
+     */
     private $content = [];
 
-    /** @var array */
+    /**
+     * @var array
+     */
     private $contentIndex = [];
 
     /**
-     * @param ValidHtml|array|string $content
-     * @return $this
+     * Append content to the element
+     *
+     * @param   ValidHtml|array|string  $content    The content to append
+     *
+     * @return  $this
      */
     public function add($content)
     {
+        $this->ensureAssembled();
+
         if (is_array($content)) {
             foreach ($content as $c) {
                 $this->add($c);
             }
         } else {
-            $this->addIndexedContent(Html::wantHtml($content));
+            $this->addContentIndexed(Html::ensureHtml($content));
         }
 
         return $this;
     }
 
     /**
-     * @return bool
-     */
-    public function isEmpty()
-    {
-        return empty($this->content);
-    }
-
-    /**
-     * @return int
-     */
-    public function count()
-    {
-        return count($this->content);
-    }
-
-    /**
-     * @param $tag
-     * @return BaseHtmlElement
-     * @throws ProgrammingError
-     */
-    public function getFirst($tag)
-    {
-        foreach ($this->content as $c) {
-            if ($c instanceof BaseHtmlElement && $c->getTag() === $tag) {
-                return $c;
-            }
-        }
-
-        throw new ProgrammingError(
-            'Trying to get first %s, but there is no such',
-            $tag
-        );
-    }
-
-    /**
-     * @param $content
-     * @return $this
+     * Prepend content to the element
+     *
+     * @param   ValidHtml|array|string  $content    The content to prepend
+     *
+     * @return  $this
      */
     public function prepend($content)
     {
+        $this->ensureAssembled();
+
         if (is_array($content)) {
-            foreach (array_reverse($content) as $c) {
-                $this->prepend($c);
+            foreach (array_reverse($content) as $part) {
+                $this->prepend($part);
             }
         } else {
             $pos = 0;
-            $html = Html::wantHtml($content);
+            $html = Html::ensureHtml($content);
             array_unshift($this->content, $html);
             $this->incrementIndexKeys();
-            $this->addObjectPosition($html, $pos);
+            $this->addContentByPos($html, $pos);
         }
 
         return $this;
     }
 
+    /**
+     * Remove content from the element
+     *
+     * @param   ValidHtml   $html   The content to remove
+     *
+     * @return  $this
+     */
     public function remove(ValidHtml $html)
     {
         $key = spl_object_hash($html);
+
         if (array_key_exists($key, $this->contentIndex)) {
             foreach ($this->contentIndex[$key] as $pos) {
                 unset($this->content[$pos]);
@@ -103,98 +101,79 @@ class HtmlDocument implements ValidHtml, Countable
         }
 
         $this->reIndexContent();
+
+        return $this;
     }
 
     /**
-     * @param $string
-     * @return HtmlDocument
-     */
-    public function addPrintf($string)
-    {
-        $args = func_get_args();
-        array_shift($args);
-
-        return $this->add(
-            new FormattedString($string, $args)
-        );
-    }
-
-    /**
-     * @param HtmlDocument|array|string $content
+     * Set the content of the element
+     *
+     * @param   ValidHtml|array|string  $content
+     *
      * @return $this
      */
     public function setContent($content)
     {
         $this->content = array();
-        static::add($content);
+
+        $this->add($content);
 
         return $this;
+    }
+
+    public function count()
+    {
+        return count($this->content);
     }
 
     /**
-     * @param $separator
-     * @return self
+     * Create the initial content for the element
+     *
+     * Override this method in order to provide the initial content for the element.
      */
-    public function setSeparator($separator)
-    {
-        $this->contentSeparator = $separator;
-        return $this;
-    }
-
     protected function assemble()
     {
     }
 
     /**
-     * @inheritdoc
+     * Ensure that the initial content for the element is created
+     *
+     * This method calls {@link assemble()}.
      */
+    protected function ensureAssembled()
+    {
+        if (! $this->assembled) {
+            $this->assembled = true;
+            $this->assemble();
+        }
+    }
+
     public function render()
     {
+        $this->ensureAssembled();
+
         $html = [];
-        $this->assemble();
 
-        foreach ($this->content as $element) {
-            if (is_string($element)) {
-                var_dump($this->content);
-            }
-            $html[] = $element->render();
+        foreach ($this->content as $content) {
+            $html[] = $content->render();
         }
 
-        return implode($this->contentSeparator, $html);
-    }
-
-    /**
-     * @param Exception|string $error
-     * @return string
-     */
-    protected function renderError($error)
-    {
-        return Html::renderError($error);
-    }
-
-    /**
-     * @return string
-     */
-    public function __toString()
-    {
-        try {
-            return $this->render();
-        } catch (Exception $e) {
-            return $this->renderError($e);
-        }
+        return implode($this->separator, $html);
     }
 
     private function reIndexContent()
     {
         $this->contentIndex = [];
+
         foreach ($this->content as $pos => $html) {
-            $this->addObjectPosition($html, $pos);
+            $this->addContentByPos($html, $pos);
         }
     }
 
-    private function addObjectPosition(ValidHtml $html, $pos)
+    private function addContentByPos(ValidHtml $html, $pos)
     {
         $key = spl_object_hash($html);
+
         if (array_key_exists($key, $this->contentIndex)) {
             $this->contentIndex[$key][] = $pos;
         } else {
@@ -202,18 +181,18 @@ class HtmlDocument implements ValidHtml, Countable
         }
     }
 
-    private function addIndexedContent(ValidHtml $html)
+    private function addContentIndexed(ValidHtml $html)
     {
         $pos = count($this->content);
         $this->content[$pos] = $html;
-        $this->addObjectPosition($html, $pos);
+        $this->addContentByPos($html, $pos);
     }
 
     private function incrementIndexKeys()
     {
-        foreach ($this->contentIndex as & $index) {
-            foreach ($index as & $pos) {
-                $pos++;
+        foreach ($this->contentIndex as &$index) {
+            foreach ($index as &$pos) {
+                ++$pos;
             }
         }
     }
