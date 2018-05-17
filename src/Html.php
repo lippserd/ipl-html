@@ -112,19 +112,6 @@ class Html
     }
 
     /**
-     * @param $any
-     * @return string
-     */
-    public static function getPhpTypeName($any)
-    {
-        if (is_object($any)) {
-            return get_class($any);
-        } else {
-            return gettype($any);
-        }
-    }
-
-    /**
      * @param Exception|string $error
      * @return string
      */
