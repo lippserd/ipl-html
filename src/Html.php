@@ -3,7 +3,7 @@
 namespace ipl\Html;
 
 use Exception;
-use Icinga\Exception\IcingaException;
+use InvalidArgumentException;
 
 class Html
 {
@@ -66,35 +66,60 @@ class Html
     }
 
     /**
-     * @param $any
-     * @return ValidHtml
-     * @throws IcingaException
+     * Ensure that the given content of mixed type is converted to HTML elements that promise to render safe HTML
+     *
+     * The conversion procedure is as follows:
+     *
+     * If the content implements the {@link ValidHtml} interface, no conversion is applied. If the content is of a
+     * scalar type, it will be converted to a {@link Text} element. If the content is an array, the conversion procedure
+     * will be applied to every element in the array. A {@link HtmlDocument} object will be returned in this case which
+     * contains the converted elements.
+     *
+     * @param   ValidHtml|string|array  $content
+     *
+     * @return  ValidHtml|Text|HtmlDocument
+     *
+     * @throws  InvalidArgumentException    In case the given content is of an unsupported type
      */
-    public static function wantHtml($any)
+    public static function ensureHtml($content)
     {
-        if ($any instanceof ValidHtml) {
-            return $any;
-        } elseif (static::canBeRenderedAsString($any)) {
-            return new Text($any);
-        } elseif (is_array($any)) {
+        if ($content instanceof ValidHtml) {
+            return $content;
+        }
+
+        if (is_scalar($content)) {
+            return new Text($content);
+        }
+
+        if (is_array($content)) {
             $html = new HtmlDocument();
-            foreach ($any as $el) {
-                $html->add(static::wantHtml($el));
+
+            if (! empty($content)) {
+                foreach ($content as $element) {
+                    $html->add(static::ensureHtml($element));
+                }
             }
 
             return $html;
-        } else {
-            // TODO: Should we add a dedicated Exception class?
-            throw new IcingaException(
-                'String, Html Element or Array of such expected, got "%s"',
-                Html::getPhpTypeName($any)
-            );
         }
+
+        if (is_object($content)) {
+            $type = get_class($content);
+        } else {
+            $type = gettype($content);
+        }
+
+        throw new InvalidArgumentException(
+            "Instance of ValidHtml, array or scalar type expected. Got $type instead."
+        );
     }
 
-    public static function canBeRenderedAsString($any)
+    /**
+     * @deprecated Use {@link Html::ensureHtml()} instead
+     */
+    public static function wantHtml($content)
     {
-        return is_string($any) || is_int($any) || is_null($any) || is_float($any);
+        return self::ensureHtml($content);
     }
 
     /**
