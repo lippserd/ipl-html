@@ -123,37 +123,6 @@ class Html
             return gettype($any);
         }
     }
-    /**
-     * @param $name
-     * @param $arguments
-     * @return HtmlElement
-     */
-    public static function __callStatic($name, $arguments)
-    {
-        $attributes = array_shift($arguments);
-        $content = null;
-        if ($attributes instanceof ValidHtml || is_string($attributes)) {
-            $content = $attributes;
-            $attributes = null;
-        } elseif (is_array($attributes)) {
-            if (empty($attributes)) {
-                $attributes = null;
-            } elseif (is_int(key($attributes))) {
-                $content = $attributes;
-                $attributes = null;
-            }
-        }
-
-        if (!empty($arguments)) {
-            if (null === $content) {
-                $content = $arguments;
-            } else {
-                $content = [$content, $arguments];
-            }
-        }
-
-        return new HtmlElement($name, $attributes, $content);
-    }
 
     /**
      * @param Exception|string $error
