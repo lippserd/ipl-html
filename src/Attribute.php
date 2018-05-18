@@ -199,6 +199,6 @@ class Attribute
             $value = implode($name === 'style' ? ';' : ' ', $value);
         }
 
-        return $name . '="' . Html::encode($value) . '""';
+        return $name . '="' . Html::encode($value) . '"';
     }
 }
