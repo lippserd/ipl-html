@@ -2,85 +2,57 @@
 
 namespace ipl\Html;
 
-use Exception;
-
 /**
- * This class allows to have plain text passed in as a callback. That way it
- * would not be called and stringified unless it is going to be rendered and
- * escaped to HTML
+ * Generate content only when rendering
  *
- * Usage
- * -----
- * <code>
- * $myVar = 'Some value';
- * $text = new DeferredText(function () use ($myVar) {
- *     return $myVar;
- * });
- * $myVar = 'Changed idea';
- * echo $text;
- * </code>
+ * This class allows to generate content via a callback. It is called when the element is going to be rendered and
+ * escaped to HTML:
+ *
+ *     $myVar = 'Some value';
+ *     $text = new DeferredText(function () use ($myVar) {
+ *         return $myVar;
+ *     });
+ *     $myVar = 'Changed idea';
+ *     echo $text->render();
+ *
+ * The content of the element is HTML-encoded using {@link Html::encode()} if necessary.
  */
 class DeferredText implements ValidHtml
 {
-    /** @var callable will return the text that should be rendered */
+    /**
+     * Callback which returns the content to render
+     *
+     * @var callable
+     */
     protected $callback;
 
-    /** @var bool */
-    protected $escaped = false;
+    /**
+     * Whether the callback's content is already HTML-encoded
+     *
+     * @var bool
+     */
+    protected $encoded;
 
     /**
-     * DeferredText constructor.
-     * @param callable $callback Must return the text that should be rendered
+     * DeferredText constructor
+     *
+     * @param   callable    $callback   Callback which returns the content to render
+     * @param   bool        $encoded    Whether the callback's content is already HTML-encoded
      */
-    public function __construct(callable $callback)
+    public function __construct(callable $callback, $encoded = false)
     {
         $this->callback = $callback;
-    }
-
-    /**
-     * Static factory
-     *
-     * @param callable $callback Must return the text that should be rendered
-     * @return static
-     */
-    public static function create(callable $callback)
-    {
-        return new static($callback);
+        $this->encoded = (bool) $encoded;
     }
 
     public function render()
     {
-        $callback = $this->callback;
+        $content = call_user_func($this->callback, $this);
 
-        if ($this->escaped) {
-            return $callback();
-        } else {
-            return Html::escapeForHtml($callback());
+        if (! $this->encoded) {
+            return Html::encode($content);
         }
-    }
 
-    /**
-     * @param bool $escaped
-     * @return $this
-     */
-    public function setEscaped($escaped = true)
-    {
-        $this->escaped = $escaped;
-        return $this;
-    }
-
-    /**
-     * Calls the render function, but is failsafe. In case an Exception occurs,
-     * an error is rendered instead of the expected HTML
-     *
-     * @return string
-     */
-    public function __toString()
-    {
-        try {
-            return $this->render();
-        } catch (Exception $e) {
-            return Html::renderError($e);
-        }
+        return $content;
     }
 }
