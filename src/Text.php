@@ -2,86 +2,45 @@
 
 namespace ipl\Html;
 
-use Exception;
-
+/**
+ * A HTML text element
+ *
+ * The content of the text element is HTML-encoded using {@link Html::encode()} if necessary.
+ */
 class Text implements ValidHtml
 {
-    /** @var string */
-    protected $string;
-
-    protected $escaped = false;
-
     /**
-     * Text constructor.
+     * The content to render
      *
-     * @param $text
+     * @var string
      */
-    public function __construct($string)
-    {
-        $this->string = (string) $string;
-    }
+    protected $content;
 
     /**
-     * @return string
-     */
-    public function getText()
-    {
-        return $this->string;
-    }
-
-    /**
-     * @param bool $escaped
-     * @return $this
-     */
-    public function setEscaped($escaped = true)
-    {
-        $this->escaped = $escaped;
-        return $this;
-    }
-
-    /**
-     * @param $text
+     * Whether the content is already HTML-encoded
      *
-     * @return static
+     * @var bool
      */
-    public static function create($text)
-    {
-        return new static($text);
-    }
+    protected $encoded;
 
     /**
-     * @return string
+     * Create a text element
+     *
+     * @param   string  $content    The content to render
+     * @param   bool    $encoded    Whether the content is already HTML-encoded
      */
+    public function __construct($content, $encoded = false)
+    {
+        $this->content = (string) $content;
+        $this->encoded = (bool) $encoded;
+    }
+
     public function render()
     {
-        if ($this->escaped) {
-            return $this->string;
-        } else {
-            return Html::escapeForHtml($this->string);
+        if ($this->encoded) {
+            return $this->content;
         }
-    }
 
-    /**
-     * TODO: Allow to (statically) inject an error renderer. This will allow
-     *       us to satisfy "Show exceptions" settings and/or preferences
-     *
-     * @param Exception|string $error
-     * @return string
-     */
-    protected function renderError($error)
-    {
-        return Html::renderError($error);
-    }
-
-    /**
-     * @return string
-     */
-    public function __toString()
-    {
-        try {
-            return $this->render();
-        } catch (Exception $e) {
-            return $this->renderError($e);
-        }
+        return Html::encode($this->content);
     }
 }
