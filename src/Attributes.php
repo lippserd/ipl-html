@@ -205,6 +205,22 @@ class Attributes implements ValidHtml, IteratorAggregate
     }
 
     /**
+     * Set attribute {@link Attribute::getValue()} or {@link Attribute::setValue()} callback(s)
+     *
+     * @param   string      $attribute  The name of the attribute
+     * @param   callable    $getter
+     * @param   callable    $setter
+     *
+     * @return  $this
+     */
+    public function setCallback($attribute, callable $getter = null, callable $setter = null)
+    {
+        $this->get($attribute)->setCallback($getter, $setter);
+
+        return $this;
+    }
+
+    /**
      * Render attributes to HTML
      *
      * If the value of an attribute is of type boolean, it will be rendered as

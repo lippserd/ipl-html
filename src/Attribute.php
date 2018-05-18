@@ -30,6 +30,20 @@ class Attribute
     protected $value;
 
     /**
+     * {@link getValue()} callback
+     *
+     * @var callable
+     */
+    protected $getter;
+
+    /**
+     * {@link setValue()} callback
+     *
+     * @var callable
+     */
+    protected $setter;
+
+    /**
      * Create a new HTML attribute from the given name and value
      *
      * @param   string                  $name   The name of the attribute
@@ -68,6 +82,10 @@ class Attribute
      */
     public function getValue()
     {
+        if ($this->getter !== null) {
+            return call_user_func($this->getter);
+        }
+
         return $this->value;
     }
 
@@ -80,6 +98,9 @@ class Attribute
      */
     public function setValue($value)
     {
+        if ($this->setter !== null) {
+            $value = call_user_func($this->setter, $value);
+        }
         $this->value = $value;
 
         return $this;
@@ -127,6 +148,22 @@ class Attribute
         }
 
         $this->value = array_diff($this->value, $value);
+
+        return $this;
+    }
+
+    /**
+     * Set {@link getValue()} or {@link setValue()} callback(s)
+     *
+     * @param   callable    $getter
+     * @param   callable    $setter
+     *
+     * @return  $this
+     */
+    public function setCallback(callable $getter = null, callable $setter = null)
+    {
+        $this->getter = $getter;
+        $this->setter = $setter;
 
         return $this;
     }
