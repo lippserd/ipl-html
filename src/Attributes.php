@@ -96,8 +96,12 @@ class Attributes implements ValidHtml, IteratorAggregate
      *
      * @return $this
      */
-    public function add($attribute, $value = null)
+    public function add($attribute = null, $value = null)
     {
+        if ($attribute === null) {
+            return $this;
+        }
+
         if ($attribute instanceof self) {
             foreach ($attribute as $attr) {
                 $this->add($attr);
