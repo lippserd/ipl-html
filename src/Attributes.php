@@ -274,7 +274,7 @@ class Attributes implements ValidHtml, IteratorAggregate
             $type = gettype($attributes);
         }
 
-        throw new InvalidArgumentException("Attribute instance, array or expected. Got $type instead.");
+        throw new InvalidArgumentException("Attribute instance, array or null expected. Got $type instead.");
     }
 
     /**
