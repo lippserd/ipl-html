@@ -102,7 +102,7 @@ class Html
      *
      * @param   string                  $tag        The tag for the element
      * @param   Attributes|array        $attributes The HTML attributes for the element
-     * @param   ValidHtml|string|array  $content    The contentl of the element
+     * @param   ValidHtml|string|array  $content    The content of the element
      *
      * @return  HtmlElement The created element
      */
