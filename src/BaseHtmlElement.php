@@ -131,7 +131,7 @@ abstract class BaseHtmlElement extends HtmlDocument
             $html = [
                 // rtrim because attributes may be empty
                 rtrim("<$tag " . $this->getAttributes()->render())
-                . ">"
+                . '>'
             ];
 
             if ($this->wantsClosingTag()) {
