@@ -95,20 +95,54 @@ class Html
     }
 
     /**
-     * Create a HTML element from the given tag, attributes and content
+     * Create a HTML element
      *
-     * This method does not render the HTML element but creates a {@link HtmlElement} instance from the given tag,
-     * attributes and content
+     * This method supports the following signatures:
      *
-     * @param   string                  $tag        The tag for the element
-     * @param   Attributes|array        $attributes The HTML attributes for the element
-     * @param   ValidHtml|string|array  $content    The content of the element
+     * * Html::tag($tag, $content) and
+     * * Html::tag($tag, $attributes, $content)
+     *
+     * with the following parameter specification:
+     *
+     * * ValidHtml|string|array **$content**
+     * * Attributes|array       **$attributes**
+     *
+     * If you want to omit the attributes of the element, just specify content as the second parameter. Note that if you
+     * specify attributes and content for the element, attributes must be the 2nd and content must be the 3rd parameter
+     * to this method.
+     *
+     * @param   string  $tag                                    The tag for the element
+     * @param   mixed                   $attributesOrContent    Either the content of the element if you want to omit
+     *                                                          the attributes or the attributes of the element either
+     *                                                          as {@link Attributes} instance or array of attribute
+     *                                                          name-value pairs
+     * @param   ValidHtml|string|array  $content                The content of the element if attributes are present
      *
      * @return  HtmlElement The created element
      */
-    public static function tag($tag, $attributes = null, $content = null)
+    public static function tag($tag, $attributesOrContent = null, $content = null)
     {
-        return new HtmlElement($tag, $attributes, $content);
+        if ($content === null) {
+            // Detect whether attributes is content
+            $attributesIsContent = false;
+            if (is_array($attributesOrContent)) {
+                reset($attributesOrContent);
+                $first = key($attributesOrContent);
+
+                if (is_int($first) && ! $attributesOrContent[$first] instanceof Attribute) {
+                    $attributesIsContent = true;
+                }
+            } elseif (! $attributesOrContent instanceof Attributes) {
+                $attributesIsContent = true;
+            }
+
+            if ($attributesIsContent) {
+                $content = $attributesOrContent;
+                $attributesOrContent = null;
+            }
+        }
+
+        return new HtmlElement($tag, $attributesOrContent, $content);
     }
 
     /**
