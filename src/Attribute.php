@@ -199,6 +199,12 @@ class Attribute
             $value = implode($name === 'style' ? ';' : ' ', $value);
         }
 
-        return $name . '="' . Html::encode($value) . '"';
+        if ($value instanceof ValidHtml) {
+            $value = $value->render();
+        } else {
+            $value = Html::encode($value);
+        }
+
+        return "{$name}=\"{$value}\"";
     }
 }
